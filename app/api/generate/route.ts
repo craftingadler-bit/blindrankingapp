@@ -28,7 +28,7 @@ export async function POST(req: Request) {
           generationConfig: { maxOutputTokens: 250, temperature: 0.7 }
         });
 
-        const prompt = `Erstelle eine Liste von genau 5 bekannten Objekten zu: "${topic}". Antworte NUR als JSON-Array: ["A", "B", ...]`;
+        const prompt = `Erstelle eine Liste von genau 10 bekannten Objekten zu: "${topic}". Antworte NUR als JSON-Array: ["A", "B", ...]`;
         
         const result: GenerateContentResult = await model.generateContent(prompt);
         const text = result.response.text().trim();
