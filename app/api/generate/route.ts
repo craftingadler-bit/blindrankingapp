@@ -34,7 +34,8 @@ export async function POST(req: Request) {
         const text = result.response.text().trim();
         
         // Extrahiert das JSON-Array aus der Antwort
-        const match = text.match(/\[.*\]/s);
+       // Das [\s\S]* matcht alles inklusive Newlines, ohne den /s Flag zu benötigen
+      const match = text.match(/\[[\s\S]*\]/);
         if (!match) continue; // Falls kein JSON gefunden wurde, nächstes Modell
 
         const items: string[] = JSON.parse(match[0]);
