@@ -1,35 +1,20 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { User } from '@supabase/supabase-js'
-
-const ICONS: Record<string, string> = {
-  Fussball: "⚽",
-  Filme: "🍿",
-  Serien: "📺",
-  Städte: "🏙️",
-  Essen: "🍔",
-  Schulfächer: "📚",
-  Autos: "🚗",
-  Automodelle: "🏎️",
-  Reiseziele: "✈️",
-  "Orte für Sex": "🔥",
-  Sexstellungen: "🔞",
-  "Kampf-Gegner": "⚔️",
-  Attraktivität: "✨",
-  "Date-Eigenschaften": "🚩",
-  RANDOM: "🎲"
-}
+import { Zap, Play, BarChart3, User as UserIcon, LogOut, Sparkles, Wand2, ChevronDown, Lightbulb, Trophy } from 'lucide-react'
+import { ICONS } from '../lib/icons'
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [customTopic, setCustomTopic] = useState("")
   const [hasMounted, setHasMounted] = useState(false)
   const [availableCategories, setAvailableCategories] = useState<string[]>([])
-  
-  // NEU: State für die Anzahl der Ranking-Slots
   const [slotCount, setSlotCount] = useState<5 | 10>(5)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
   const isAdmin = !!user && !!adminEmail && user.email === adminEmail;
@@ -41,7 +26,8 @@ export default function Home() {
 
       const { data: items, error } = await supabase.from('game_items').select('category');
       if (items && !error) {
-        const uniqueCats = Array.from(new Set(items.map(i => i.category)));
+        const uniqueCats = Array.from(new Set(items.map(i => i.category)))
+          .filter(cat => cat !== 'Situationen');
         setAvailableCategories(uniqueCats);
       }
       setHasMounted(true);
@@ -54,146 +40,193 @@ export default function Home() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  const scrollToContent = () => {
+    contentRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleLogout = async () => { await supabase.auth.signOut() }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 selection:bg-blue-200">
+    <div className="flex min-h-screen bg-white text-slate-900 selection:bg-yellow-200">
       
-      {/* SIDEBAR LINKS */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 overflow-y-auto shadow-sm">
-        <div className="p-8">
-          <h1 className="text-3xl font-black tracking-tighter text-slate-900 mb-6">
-            Blind<span className="text-blue-600">Rank</span>
-          </h1>
-
-          {/* NEU: Slot-Schalter (Pill-Design) */}
-          <div className="mb-10 bg-slate-100 p-1 rounded-2xl flex relative">
-            <button 
-              onClick={() => setSlotCount(5)}
-              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 5 ? 'text-blue-600' : 'text-slate-400'}`}
-            >
-              5 SLOTS
-            </button>
-            <button 
-              onClick={() => setSlotCount(10)}
-              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 10 ? 'text-blue-600' : 'text-slate-400'}`}
-            >
-              10 SLOTS
-            </button>
-            {/* Animierter Hintergrund-Slider */}
-            <div 
-              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-all duration-300 ${
-                slotCount === 10 ? 'left-[calc(50%+2px)]' : 'left-1'
-              }`}
-            ></div>
-          </div>
+      {/* 1. FIXIERTE SIDEBAR */}
+      <aside className="hidden lg:flex w-80 bg-slate-50 border-r border-slate-100 flex-col h-screen sticky top-0 overflow-hidden z-[60]">
+        <div className="p-8 flex flex-col h-full">
           
-          <nav className="space-y-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Modi</p>
-            <Link 
-              href={`/game?cat=RANDOM&slots=${slotCount}`} 
-              className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900 text-white font-bold hover:scale-105 transition-all mb-6 shadow-lg shadow-slate-200"
-            >
-              <span>🎲</span> Main Game
-            </Link>
+          <div className="mb-12 cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+            <h1 className="text-4xl font-black tracking-tighter italic">
+              BLIND<span className="text-blue-600 drop-shadow-sm">RANK</span>
+              <span className="block text-[8px] tracking-[0.6em] text-slate-400 font-black uppercase mt-1 not-italic">
+                Engine v1.2
+              </span>
+            </h1>
+          </div>
 
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Kategorien</p>
-            {availableCategories.map((cat) => (
-              <Link 
-                key={cat} 
-                href={`/game?cat=${cat}&slots=${slotCount}`} 
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 font-bold hover:bg-slate-50 hover:text-blue-600 transition-all group"
-              >
-                <span className="text-xl group-hover:scale-125 transition-transform">{ICONS[cat] || "✨"}</span>
-                <span className="truncate">{cat}</span>
+          <div className="mb-10">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Match Length</p>
+            <div className="bg-slate-200/50 p-1 rounded-2xl flex relative w-full border border-slate-200">
+              <button onClick={() => setSlotCount(5)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 5 ? 'text-blue-600' : 'text-slate-400'}`}>5 SLOTS</button>
+              <button onClick={() => setSlotCount(10)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 10 ? 'text-blue-600' : 'text-slate-400'}`}>10 SLOTS</button>
+              <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-md transition-all duration-300 ${slotCount === 10 ? 'left-[calc(50%+2px)]' : 'left-1'}`}></div>
+            </div>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto pr-2 space-y-8 custom-scrollbar">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Navigation</p>
+              <Link href="/stats" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 font-bold hover:bg-white hover:shadow-sm transition-all">
+                <BarChart3 size={18} /> Leaderboard
               </Link>
-            ))}
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Categories</p>
+              <div className="space-y-1">
+                {availableCategories.map((cat) => (
+                  <Link 
+                    key={cat} 
+                    href={`/game?cat=${cat}&slots=${slotCount}`} 
+                    className="flex items-center justify-between px-4 py-3 rounded-xl text-slate-500 font-bold hover:text-blue-600 hover:bg-white transition-all group text-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="group-hover:scale-125 transition-transform">{ICONS[cat] || "✨"}</span>
+                      {cat}
+                    </div>
+                    <Play size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                ))}
+              </div>
+            </div>
           </nav>
         </div>
       </aside>
 
-      {/* MAIN CONTENT RECHTS */}
-      <main className="flex-1 flex flex-col p-8 md:p-12">
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 flex flex-col relative min-w-0">
         
-        {/* Header */}
-        <header className="flex justify-end items-center gap-6 mb-12">
+        {/* 2. TOP-RIGHT NAVIGATION (Immer sichtbar & Name fixiert) */}
+        <div className="fixed top-8 right-8 z-[100] flex items-center gap-3">
           {user ? (
-            <div className="flex items-center gap-4 bg-white p-2 px-4 rounded-full border border-slate-100 shadow-sm">
-              <Link href="/notes" className="text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors">Ideen</Link>
-              <Link href="/profile" className="text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors">Profile</Link>
-              <div className="w-[1px] h-4 bg-slate-200"></div>
-              <span className="text-sm font-medium text-slate-500">{user.email?.split('@')[0]}</span>
-              <button onClick={handleLogout} className="text-xs font-black text-red-400 hover:text-red-600 uppercase tracking-tighter">Exit</button>
-            </div>
-          ) : (
-            <Link href="/login" className="bg-blue-600 text-white px-8 py-3 rounded-full text-sm font-black hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all">ANMELDEN</Link>
-          )}
-        </header>
-
-        {/* Hero Area */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
-          <div className="text-center mb-16">
-            <div className="inline-block bg-blue-100 text-blue-700 font-bold px-4 py-1.5 rounded-full text-sm mb-6 tracking-wide uppercase">v1.2 Platform Update</div>
-            <h2 className="text-5xl md:text-7xl font-black tracking-tighter text-slate-900 leading-tight">
-              Das ultimative <br />
-              <span className="text-blue-600 underline decoration-blue-200 underline-offset-8">Ranking Duell.</span>
-            </h2>
-            <p className="mt-8 text-xl text-slate-400 font-medium max-w-xl mx-auto">
-              Wähle links die Anzahl der Slots und eine Kategorie.
-            </p>
-          </div>
-
-          {/* AI SECTION */}
-          <div className="w-full bg-white p-8 md:p-12 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50">
-            <div className="flex flex-col items-center mb-10">
-              <h3 className="text-3xl font-black text-slate-900 uppercase">AI Rankle</h3>
-              <div className="h-1 w-12 bg-blue-600 mt-2 rounded-full"></div>
-            </div>
-
-            <div className={`p-3 rounded-[2rem] border transition-all duration-700 ${
-              hasMounted && isAdmin 
-              ? 'bg-slate-50 border-slate-200 opacity-100' 
-              : 'bg-slate-100 border-transparent opacity-40 grayscale'
-            }`}>
-              <div className="flex flex-col md:flex-row gap-3">
-                <input 
-                  type="text" 
-                  placeholder={
-                    !hasMounted ? "System lädt..." :
-                    isAdmin ? "Thema eingeben (z.B. Avengers, Rapper...)" : 
-                    "KI-Modus nur für Admins"
-                  }
-                  className="flex-1 px-8 py-5 rounded-2xl outline-none font-bold text-xl text-slate-900 bg-transparent disabled:cursor-not-allowed"
-                  value={customTopic}
-                  onChange={(e) => setCustomTopic(e.target.value)}
-                  disabled={!hasMounted || !isAdmin}
-                />
-                <Link 
-                  href={`/game?cat=AI_RANKLE&topic=${encodeURIComponent(customTopic)}&slots=${slotCount}`}
-                  className={`px-12 py-5 rounded-2xl font-black text-lg text-center transition-all ${
-                    hasMounted && isAdmin && customTopic.length > 2 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02] shadow-xl shadow-blue-200' 
-                    : 'bg-slate-300 text-slate-500 pointer-events-none'
-                  }`}
-                >
-                  GENERIEREN
+            <>
+              <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200 shadow-2xl">
+                <Link href="/notes" title="Ideen" className="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
+                  <Lightbulb size={18} />
+                </Link>
+                
+                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+                
+                {/* Name jetzt immer sichtbar */}
+                <Link href="/profile" className="flex items-center gap-3 pl-3 pr-1 group">
+                  <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">
+                    {user.email?.split('@')[0]}
+                  </span>
+                  <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white text-xs font-black ring-4 ring-slate-50 group-hover:bg-blue-600 transition-all">
+                    {user.email?.[0].toUpperCase()}
+                  </div>
                 </Link>
               </div>
-            </div>
-            
-            {hasMounted && (
-              <p className="text-center text-[10px] font-black text-slate-400 uppercase mt-6 tracking-[0.2em]">
-                {!user ? "Sperre: Nicht angemeldet" : !isAdmin ? "Sperre: Kein Admin-Zugriff" : "Status: Bereit für Prompts"}
-              </p>
-            )}
-          </div>
+              <button onClick={handleLogout} className="p-3 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-xl">
+                <LogOut size={18} />
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="bg-slate-900 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-2xl">
+              Join Engine
+            </Link>
+          )}
         </div>
 
-        {/* Footer info */}
-        <footer className="mt-20 text-center">
-          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">© 2026 BlindRank Engine • Powered by Gemini Flash</p>
-        </footer>
+        {/* 3. HERO SECTION */}
+        <section className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden bg-white px-6">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
+            <h1 className="text-[30vw] font-black italic tracking-tighter leading-none uppercase">Chaos</h1>
+          </div>
+
+          <div className="relative z-10 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-8 shadow-xl shadow-blue-200">
+               <Zap size={12} fill="currentColor" /> Let the Games begin
+            </div>
+            
+            <h1 className="text-8xl md:text-[12rem] font-black italic tracking-tighter leading-[0.8] mb-8">
+              BLIND<br />
+              <span className="text-blue-600">RANK.</span>
+            </h1>
+
+            <button 
+              onClick={scrollToContent}
+              className="group flex items-center gap-4 bg-slate-900 text-white px-12 py-6 rounded-full font-black uppercase text-sm tracking-[0.3em] hover:bg-blue-600 transition-all shadow-2xl hover:scale-105 active:scale-95"
+            >
+              SPIEL STARTEN <Play size={18} fill="currentColor" />
+            </button>
+          </div>
+        </section>
+
+        {/* 4. DYNAMIC CONTENT SECTION */}
+        <div ref={contentRef} className="p-6 md:p-12 max-w-5xl mx-auto w-full pt-40">
+          
+          <section className="mb-32">
+            <div 
+              onClick={() => router.push(`/game?cat=Situationen&slots=${slotCount}`)}
+              className="relative group cursor-pointer w-full"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-red-600 via-purple-600 to-blue-600 rounded-[4rem] blur opacity-15 group-hover:opacity-40 transition duration-700"></div>
+              
+              <div className="relative bg-slate-900 rounded-[3.5rem] p-12 md:p-24 overflow-hidden border border-white/5 shadow-2xl flex flex-col items-center text-center text-white">
+                <h2 className="text-7xl md:text-9xl font-black italic tracking-tighter mb-8 leading-[0.85]">
+                  COMPLETE <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600">
+                    RANDOM
+                  </span>
+                </h2>
+                <div className="inline-flex items-center gap-6 bg-white text-black px-12 py-6 rounded-full font-black uppercase text-sm tracking-[0.3em] group-hover:bg-yellow-400 transition-all shadow-2xl">
+                  CHAOS MODUS <Zap size={18} fill="black" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* AI RANKLE */}
+          <section className="max-w-3xl mx-auto w-full pb-32">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 px-4 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-[0.4em] mb-4">
+                <Sparkles size={12} /> AI Laboratory
+              </div>
+              <h3 className="text-4xl font-black italic tracking-tighter text-slate-900 uppercase">Custom Rankle</h3>
+            </div>
+
+            <div className={`relative p-3 rounded-[3rem] border transition-all duration-500 ${
+              isAdmin ? 'bg-white border-slate-200 shadow-2xl' : 'bg-slate-50 border-slate-100 opacity-60'
+            }`}>
+              <div className="flex flex-col md:flex-row items-center gap-3">
+                <div className="flex-1 flex items-center px-8 w-full">
+                  <Wand2 size={24} className="text-blue-500 mr-4" />
+                  <input 
+                    type="text" 
+                    placeholder={isAdmin ? "Eigenes Thema..." : "Admin Only"}
+                    className="w-full py-6 outline-none font-bold text-2xl text-slate-900 bg-transparent placeholder:text-slate-300"
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value)}
+                    disabled={!isAdmin}
+                  />
+                </div>
+                <button 
+                  onClick={() => router.push(`/game?cat=AI_RANKLE&topic=${encodeURIComponent(customTopic)}&slots=${slotCount}`)}
+                  disabled={!isAdmin || customTopic.length < 3}
+                  className="w-full md:w-auto bg-blue-600 text-white px-12 py-6 rounded-[2.5rem] font-black uppercase tracking-widest text-xs shadow-xl shadow-blue-100 hover:bg-slate-900 transition-all"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
       </main>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+      `}</style>
     </div>
   )
 }
