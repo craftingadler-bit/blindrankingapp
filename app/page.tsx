@@ -25,6 +25,12 @@ export default function Home() {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      // 1. Slot-Präferenz aus LocalStorage laden
+      const savedSlots = localStorage.getItem('blindrank_slots')
+      if (savedSlots === '5' || savedSlots === '10') {
+        setSlotCount(Number(savedSlots) as 5 | 10)
+      }
+
       const { data: userData } = await supabase.auth.getUser();
       setUser(userData.user);
 
@@ -44,6 +50,12 @@ export default function Home() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  // NEU: Hilfsfunktion zum Speichern der Auswahl
+  const updateSlotCount = (count: 5 | 10) => {
+    setSlotCount(count)
+    localStorage.setItem('blindrank_slots', count.toString())
+  }
+
   const scrollToContent = () => {
     contentRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -53,9 +65,9 @@ export default function Home() {
   return (
     <div className="flex min-h-screen bg-white text-slate-900 selection:bg-yellow-200">
       
-      {/* 1. SIDEBAR - JETZT KOMPLETT FIXED */}
+      {/* 1. SIDEBAR */}
       <aside className={`
-        fixed inset-y-0 left-0 z-[150] w-80 bg-slate-50 border-r border-slate-100 transform transition-transform duration-300 flex flex-col
+        fixed inset-y-0 left-0 z-150 w-80 bg-slate-50 border-r border-slate-100 transform transition-transform duration-300 flex flex-col
         lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
       `}>
         <div className="p-8 flex flex-col h-full">
@@ -73,8 +85,9 @@ export default function Home() {
           <div className="mb-10">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Match Length</p>
             <div className="bg-slate-200/50 p-1 rounded-2xl flex relative w-full border border-slate-200">
-              <button onClick={() => setSlotCount(5)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 5 ? 'text-blue-600' : 'text-slate-400'}`}>5 SLOTS</button>
-              <button onClick={() => setSlotCount(10)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 10 ? 'text-blue-600' : 'text-slate-400'}`}>10 SLOTS</button>
+              {/* Geändert auf updateSlotCount */}
+              <button onClick={() => updateSlotCount(5)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 5 ? 'text-blue-600' : 'text-slate-400'}`}>5 SLOTS</button>
+              <button onClick={() => updateSlotCount(10)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 10 ? 'text-blue-600' : 'text-slate-400'}`}>10 SLOTS</button>
               <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-md transition-all duration-300 ${slotCount === 10 ? 'left-[calc(50%+2px)]' : 'left-1'}`}></div>
             </div>
           </div>
@@ -112,28 +125,28 @@ export default function Home() {
 
       {/* MOBILE OVERLAY */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[140] lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-140 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
       )}
 
-      {/* MAIN CONTENT AREA - MIT MARGIN LINKS AUF DESKTOP */}
+      {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative min-w-0 lg:ml-80">
         
         {/* MOBILE MENU TRIGGER */}
         <button 
-          className="lg:hidden fixed top-6 left-6 z-[100] p-3 bg-white rounded-full shadow-xl border border-slate-100"
+          className="lg:hidden fixed top-6 left-6 z-100 p-3 bg-white rounded-full shadow-xl border border-slate-100"
           onClick={() => setIsMobileMenuOpen(true)}
         >
           <Menu size={24} />
         </button>
 
         {/* TOP-RIGHT NAVIGATION */}
-        <div className="fixed top-6 right-6 lg:top-8 lg:right-8 z-[100] flex items-center gap-3">
+        <div className="fixed top-6 right-6 lg:top-8 lg:right-8 z-100 flex items-center gap-3">
           {user ? (
             <>
               <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200 shadow-2xl">
                 <Link href="/notes" title="Ideen" className="p-2.5 text-slate-500 hover:text-blue-600 transition-all"><Lightbulb size={18} /></Link>
                 <Link href="/rankings" title="Meine Rankings" className="p-2.5 text-slate-500 hover:text-blue-600 transition-all"><Trophy size={18} /></Link>
-                <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+                <div className="w-px h-4 bg-slate-200 mx-1"></div>
                 <Link href="/profile" className="flex items-center gap-3 pl-3 pr-1">
                   <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight block">
                     {user.email?.split('@')[0]}
@@ -177,11 +190,11 @@ export default function Home() {
         <div ref={contentRef} className="p-6 md:p-12 max-w-5xl mx-auto w-full pt-40">
           <section className="mb-32">
             <div onClick={() => router.push(`/game?cat=Situationen&slots=${slotCount}`)} className="relative group cursor-pointer w-full">
-              <div className="absolute -inset-1 bg-gradient-to-r from-red-600 via-purple-600 to-blue-600 rounded-[3rem] lg:rounded-[4rem] blur opacity-15 group-hover:opacity-40 transition duration-700"></div>
+              <div className="absolute -inset-1 bg-linear-to-r from-red-600 via-purple-600 to-blue-600 rounded-[3rem] lg:rounded-[4rem] blur opacity-15 group-hover:opacity-40 transition duration-700"></div>
               <div className="relative bg-slate-900 rounded-[2.5rem] lg:rounded-[3.5rem] p-12 lg:p-24 overflow-hidden border border-white/5 shadow-2xl flex flex-col items-center text-center text-white">
                 <h2 className="text-6xl lg:text-9xl font-black italic tracking-tighter mb-8 leading-[0.85]">
                   COMPLETE <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600">RANDOM</span>
+                  <span className="text-transparent bg-clip-text bg-linear-to-r from-yellow-400 via-orange-500 to-red-600">RANDOM</span>
                 </h2>
                 <div className="inline-flex items-center gap-6 bg-white text-black px-12 py-6 rounded-full font-black uppercase text-sm tracking-[0.3em] group-hover:bg-yellow-400 shadow-2xl">
                   CHAOS MODUS <Zap size={18} fill="black" />
