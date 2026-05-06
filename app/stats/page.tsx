@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { ICONS } from '../../lib/icons'
+import { User } from '@supabase/supabase-js'
+
+// 1. Definition der sensiblen Kategorien (identisch zur Home-Page)
+const SENSITIVE_CATEGORIES = [
+  "Orte für Sex", 
+  "Sexstellungen", 
+  "Attraktivität"
+];
 
 interface ItemStat {
   item_name: string
@@ -20,13 +28,22 @@ export default function StatsPage() {
   const [itemStats, setItemStats] = useState<ItemStat[]>([])
   const [catStats, setCatStats] = useState<CatStat[]>([])
   const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
+
+  // Admin-Check Logik
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = !!user && !!adminEmail && user.email === adminEmail;
 
   useEffect(() => {
     const fetchStats = async () => {
+      // User laden für Admin-Check
+      const { data: userData } = await supabase.auth.getUser();
+      setUser(userData.user);
+
       const [items, cats] = await Promise.all([
         supabase.from('global_item_stats').select('*'),
-        supabase.from('category_popularity').select('*').limit(10)
+        supabase.from('category_popularity').select('*').limit(20) // Mehr laden, da wir gleich filtern
       ])
 
       if (items.data) setItemStats(items.data)
@@ -36,12 +53,18 @@ export default function StatsPage() {
     fetchStats()
   }, [])
 
-  // Hilfsfunktion zum Gruppieren der Items nach Kategorie
+  // 2. Hilfsfunktion zum Gruppieren & Filtern der Items nach Kategorie
   const groupedItems = itemStats.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
+    // Filter: Nur hinzufügen, wenn Admin oder Kategorie nicht sensibel
+    if (isAdmin || !SENSITIVE_CATEGORIES.includes(item.category)) {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+    }
     return acc;
   }, {} as Record<string, ItemStat[]>);
+
+  // 3. Filter für die Popularitäts-Liste (Rechte Seite)
+  const filteredCatStats = catStats.filter(cat => isAdmin || !SENSITIVE_CATEGORIES.includes(cat.category)).slice(0, 10);
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
@@ -57,7 +80,10 @@ export default function StatsPage() {
           ← BACK TO HOME
         </button>
 
-        <h1 className="text-6xl md:text-7xl font-black tracking-tighter mb-16 italic">Global <span className="text-blue-600">Trends</span></h1>
+        <h1 className="text-6xl md:text-7xl font-black tracking-tighter mb-16 italic">
+          Global <span className="text-blue-600">Trends</span>
+          {isAdmin && <span className="text-xs ml-4 text-slate-400 not-italic uppercase tracking-widest">Admin View</span>}
+        </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
           
@@ -98,7 +124,7 @@ export default function StatsPage() {
             <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.4em] mb-8">Popularität</h2>
             <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-6 sticky top-12">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-4">Most Played</p>
-              {catStats.map((cat, i) => (
+              {filteredCatStats.map((cat, i) => (
                 <div key={i} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl group-hover:scale-125 transition-transform">{ICONS[cat.category] || "✨"}</span>

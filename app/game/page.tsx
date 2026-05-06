@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense, useCallback } from 'react' 
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react' 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { Zap, RotateCcw } from 'lucide-react'
@@ -20,6 +20,7 @@ function GameContent({ cat }: { cat: string | null }) {
   // FIX 1: Startet direkt auf true, verhindert den ersten unnötigen State-Wechsel
   const [loading, setLoading] = useState(true)
   const [allPossibleItems, setAllPossibleItems] = useState<GameItem[]>([])
+  const initializedRef = useRef(false)
 
   const getFreshItems = useCallback((pool: GameItem[], count: number, currentCat: string) => {
     const storageKey = `played_history_${currentCat}`
@@ -88,9 +89,11 @@ function GameContent({ cat }: { cat: string | null }) {
       setLoading(false)
     }
   }, [cat, topic, slotCount, router, getFreshItems])
-
   useEffect(() => {
-    loadItems()
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      loadItems()
+    }
   }, [loadItems])
 
   const resetGame = () => {

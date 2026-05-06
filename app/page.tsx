@@ -10,6 +10,13 @@ import {
 } from 'lucide-react'
 import { ICONS } from '../lib/icons'
 
+// 1. Hier definierst du, welche Kategorien NUR der Admin sehen darf
+const SENSITIVE_CATEGORIES = [
+  "Orte für Sex", 
+  "Sexstellungen", 
+  "Attraktivität"
+];
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [customTopic, setCustomTopic] = useState("")
@@ -25,7 +32,6 @@ export default function Home() {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      // 1. Slot-Präferenz aus LocalStorage laden
       const savedSlots = localStorage.getItem('blindrank_slots')
       if (savedSlots === '5' || savedSlots === '10') {
         setSlotCount(Number(savedSlots) as 5 | 10)
@@ -50,7 +56,6 @@ export default function Home() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // NEU: Hilfsfunktion zum Speichern der Auswahl
   const updateSlotCount = (count: 5 | 10) => {
     setSlotCount(count)
     localStorage.setItem('blindrank_slots', count.toString())
@@ -85,7 +90,6 @@ export default function Home() {
           <div className="mb-10">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Match Length</p>
             <div className="bg-slate-200/50 p-1 rounded-2xl flex relative w-full border border-slate-200">
-              {/* Geändert auf updateSlotCount */}
               <button onClick={() => updateSlotCount(5)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 5 ? 'text-blue-600' : 'text-slate-400'}`}>5 SLOTS</button>
               <button onClick={() => updateSlotCount(10)} className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all z-10 ${slotCount === 10 ? 'text-blue-600' : 'text-slate-400'}`}>10 SLOTS</button>
               <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-md transition-all duration-300 ${slotCount === 10 ? 'left-[calc(50%+2px)]' : 'left-1'}`}></div>
@@ -101,22 +105,27 @@ export default function Home() {
             </div>
 
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Categories</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">
+                {isAdmin ? "All Categories (Admin)" : "Categories"}
+              </p>
               <div className="space-y-1">
-                {availableCategories.map((cat) => (
-                  <Link 
-                    key={cat} 
-                    href={`/game?cat=${cat}&slots=${slotCount}`} 
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl text-slate-500 font-bold hover:text-blue-600 hover:bg-white transition-all group text-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="group-hover:scale-125 transition-transform">{ICONS[cat] || "✨"}</span>
-                      {cat}
-                    </div>
-                    <Play size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </Link>
-                ))}
+                {availableCategories
+                  // FILTER: Zeige sensible Kategorien nur, wenn isAdmin wahr ist
+                  .filter(cat => isAdmin || !SENSITIVE_CATEGORIES.includes(cat))
+                  .map((cat) => (
+                    <Link 
+                      key={cat} 
+                      href={`/game?cat=${cat}&slots=${slotCount}`} 
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-4 py-3 rounded-xl text-slate-500 font-bold hover:text-blue-600 hover:bg-white transition-all group text-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="group-hover:scale-125 transition-transform">{ICONS[cat] || "✨"}</span>
+                        {cat}
+                      </div>
+                      <Play size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  ))}
               </div>
             </div>
           </nav>
@@ -131,7 +140,6 @@ export default function Home() {
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative min-w-0 lg:ml-80">
         
-        {/* MOBILE MENU TRIGGER */}
         <button 
           className="lg:hidden fixed top-6 left-6 z-100 p-3 bg-white rounded-full shadow-xl border border-slate-100"
           onClick={() => setIsMobileMenuOpen(true)}
@@ -139,13 +147,12 @@ export default function Home() {
           <Menu size={24} />
         </button>
 
-        {/* TOP-RIGHT NAVIGATION */}
         <div className="fixed top-6 right-6 lg:top-8 lg:right-8 z-100 flex items-center gap-3">
           {user ? (
             <>
               <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200 shadow-2xl">
                 <Link href="/notes" title="Ideen" className="p-2.5 text-slate-500 hover:text-blue-600 transition-all"><Lightbulb size={18} /></Link>
-                <Link href="/rankings" title="Meine Rankings" className="p-2.5 text-slate-500 hover:text-blue-600 transition-all"><Trophy size={18} /></Link>
+                <Link href="/stats" title="Meine Rankings" className="p-2.5 text-slate-500 hover:text-blue-600 transition-all"><Trophy size={18} /></Link>
                 <div className="w-px h-4 bg-slate-200 mx-1"></div>
                 <Link href="/profile" className="flex items-center gap-3 pl-3 pr-1">
                   <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight block">
@@ -167,7 +174,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* HERO SECTION */}
         <section className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden bg-white px-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
             <h1 className="text-[40vw] lg:text-[30vw] font-black italic tracking-tighter leading-none uppercase">Chaos</h1>
@@ -186,8 +192,9 @@ export default function Home() {
           </div>
         </section>
 
-        {/* CONTENT */}
         <div ref={contentRef} className="p-6 md:p-12 max-w-5xl mx-auto w-full pt-40">
+          
+          {/* Chaos Modus für alle sichtbar */}
           <section className="mb-32">
             <div onClick={() => router.push(`/game?cat=Situationen&slots=${slotCount}`)} className="relative group cursor-pointer w-full">
               <div className="absolute -inset-1 bg-linear-to-r from-red-600 via-purple-600 to-blue-600 rounded-[3rem] lg:rounded-[4rem] blur opacity-15 group-hover:opacity-40 transition duration-700"></div>
@@ -203,7 +210,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* AI LABORATORY */}
           <section className="max-w-3xl mx-auto w-full pb-32">
             <div className="text-center mb-10">
               <h3 className="text-3xl lg:text-4xl font-black italic tracking-tighter text-slate-900 uppercase">Custom Rankle</h3>
@@ -233,12 +239,6 @@ export default function Home() {
           </section>
         </div>
       </main>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-      `}</style>
     </div>
   )
 }
