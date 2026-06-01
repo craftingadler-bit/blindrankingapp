@@ -3,4 +3,4 @@ const nextConfig = {
   reactStrictMode: false, // Das verhindert, dass Komponenten doppelt laden
 };
 
-export default nextConfig;
+module.exports = nextConfig;

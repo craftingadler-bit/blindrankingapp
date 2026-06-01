@@ -67,6 +67,8 @@ export default function Home() {
 
   const handleLogout = async () => { await supabase.auth.signOut() }
 
+  
+
   return (
     <div className="flex min-h-screen bg-white text-slate-900 selection:bg-yellow-200">
       
