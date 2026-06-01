@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { User } from '@supabase/supabase-js'
 import { 
-  Zap, Play, BarChart3, LogOut, Sparkles, Wand2, 
+  Zap, Play, BarChart3, LogOut, Sparkles, Wand2, Users,
   ChevronDown, Lightbulb, Trophy, Menu, X 
 } from 'lucide-react'
 import { ICONS } from '../lib/icons'
@@ -20,6 +20,7 @@ const SENSITIVE_CATEGORIES = [
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [customTopic, setCustomTopic] = useState("")
+  const [roomCode, setRoomCode] = useState("")
   const [hasMounted, setHasMounted] = useState(false)
   const [availableCategories, setAvailableCategories] = useState<string[]>([])
   const [slotCount, setSlotCount] = useState<5 | 10>(5)
@@ -101,6 +102,9 @@ export default function Home() {
           <nav className="flex-1 overflow-y-auto pr-2 space-y-8 custom-scrollbar">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-2">Navigation</p>
+              <Link href="/multiplayer" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 mb-2 rounded-2xl text-white bg-slate-900 font-bold hover:bg-blue-600 hover:shadow-md transition-all">
+                <Zap size={18} /> Multiplayer
+              </Link>
               <Link href="/stats" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 font-bold hover:bg-white hover:shadow-sm transition-all">
                 <BarChart3 size={18} /> Leaderboard
               </Link>
@@ -236,6 +240,50 @@ export default function Home() {
                 >
                   Create
                 </button>
+              </div>
+            </div>
+          </section>
+
+          {/* MULTIPLAYER SECTION */}
+          <section className="max-w-3xl mx-auto w-full pb-32">
+            <div className="text-center mb-10">
+              <h3 className="text-3xl lg:text-4xl font-black italic tracking-tighter text-slate-900 uppercase">Multiplayer</h3>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-slate-50 border border-slate-100 p-8 rounded-[3rem] flex flex-col items-center text-center transition-all hover:shadow-xl hover:bg-white">
+                <Zap size={32} className="text-blue-500 mb-4" />
+                <h4 className="font-black text-2xl mb-2">1vs1 Duell</h4>
+                <p className="text-sm text-slate-500 font-medium mb-8">Erstelle einen Raum und lade einen Freund zum Match ein.</p>
+                <button 
+                  onClick={() => router.push('/multiplayer')}
+                  className="w-full mt-auto bg-slate-900 text-white px-8 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-blue-600 transition-all shadow-xl"
+                >
+                  Raum erstellen
+                </button>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 p-8 rounded-[3rem] flex flex-col items-center text-center transition-all hover:shadow-xl hover:bg-white">
+                <Users size={32} className="text-blue-500 mb-4" />
+                <h4 className="font-black text-2xl mb-2">Beitreten</h4>
+                <p className="text-sm text-slate-500 font-medium mb-8">Hast du einen Code? Gib ihn direkt hier ein.</p>
+                <div className="w-full flex gap-2 mt-auto">
+                  <input 
+                    type="text" 
+                    maxLength={4}
+                    placeholder="CODE"
+                    value={roomCode}
+                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-5 rounded-[2rem] outline-none font-black text-center text-lg text-slate-900 bg-white border border-slate-200 focus:border-blue-500 uppercase placeholder:text-slate-300 transition-colors"
+                  />
+                  <button 
+                    onClick={() => roomCode.length >= 3 && router.push(`/join/${roomCode}`)}
+                    disabled={roomCode.length < 3}
+                    className="bg-blue-600 text-white px-8 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-slate-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl"
+                  >
+                    Go
+                  </button>
+                </div>
               </div>
             </div>
           </section>

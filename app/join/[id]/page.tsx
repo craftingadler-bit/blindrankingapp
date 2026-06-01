@@ -13,11 +13,18 @@ export default function JoinPage({ params }: { params: Promise<{ id: string }> }
     const joinRoom = async () => {
       const roomId = resolvedParams.id.toUpperCase()
       const { data: { user } } = await supabase.auth.getUser()
+      let activeUser = user;
 
-      if (!user) {
-        // Wenn der User nicht eingeloggt ist, zum Login schicken und danach hierher zurückkehren.
-        router.push(`/login?redirectTo=/join/${roomId}`)
-        return
+      if (!activeUser) {
+        setMessage('Erstelle Gast-Sitzung...')
+        const { data, error: authError } = await supabase.auth.signInAnonymously()
+        
+        if (authError || !data.user) {
+          setMessage('Fehler beim Gast-Login. Bitte manuell einloggen.')
+          setTimeout(() => router.push(`/login?redirectTo=/join/${roomId}`), 3000)
+          return
+        }
+        activeUser = data.user;
       }
 
       // Raumdaten abrufen
@@ -34,12 +41,12 @@ export default function JoinPage({ params }: { params: Promise<{ id: string }> }
       }
 
       // Verhindern, dass der Ersteller sich selbst als Spieler 2 beitritt
-      if (room.player_1_id === user.id) {
+      if (room.player_1_id === activeUser.id) {
         router.push(`/rooms/${roomId}`) // Einfach zur Lobby/Spiel weiterleiten
         return
       }
       
-      if (room.player_2_id && room.player_2_id !== user.id) {
+      if (room.player_2_id && room.player_2_id !== activeUser.id) {
         setMessage('Dieser Raum ist bereits voll.')
         return
       }
@@ -47,7 +54,7 @@ export default function JoinPage({ params }: { params: Promise<{ id: string }> }
       // Spieler 2 eintragen und Spielstatus auf "IN_PROGRESS" setzen
       const { error: updateError } = await supabase
         .from('rooms')
-        .update({ player_2_id: user.id, status: 'IN_PROGRESS' })
+        .update({ player_2_id: activeUser.id, status: 'IN_PROGRESS' })
         .eq('id', roomId)
 
       if (updateError) {

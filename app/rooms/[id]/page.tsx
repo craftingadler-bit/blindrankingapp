@@ -59,7 +59,7 @@ function Lobby({ room }: { room: Room }) {
   )
 }
 
-function MultiplayerGame({ room, currentUser }: { room: Room, currentUser: User }) {
+function MultiplayerGame({ room, currentUser, setRoom }: { room: Room, currentUser: User, setRoom: (r: Room) => void }) {
   const router = useRouter()
   const { game_data, current_item_index, current_turn, player_1_id } = room
   const board = game_data.board
@@ -68,6 +68,63 @@ function MultiplayerGame({ room, currentUser }: { room: Room, currentUser: User 
 
   const myPlayerKey = currentUser.id === player_1_id ? 'player_1' : 'player_2'
   const isMyTurn = current_turn === myPlayerKey
+  const isFinished = room.status === 'FINISHED'
+
+  const [categories, setCategories] = useState<string[]>([])
+  const [loadingRematch, setLoadingRematch] = useState(false)
+
+  useEffect(() => {
+    // Lade die Kategorien für den Host, sobald das Spiel vorbei ist
+    if (isFinished && myPlayerKey === 'player_1' && categories.length === 0) {
+      supabase.from('game_items').select('category').then(({ data, error }) => {
+        if (data && !error) {
+          const unique = Array.from(new Set(data.map(i => i.category))).filter(c => c !== 'Situationen');
+          setCategories(unique);
+        }
+      })
+    }
+  }, [isFinished, myPlayerKey, categories.length])
+
+  const startRematch = async (category: string) => {
+    setLoadingRematch(true);
+    
+    // Neue Items für die gewählte Kategorie aus der Datenbank laden
+    let query = supabase.from('game_items').select('id, name');
+    if (category !== 'RANDOM') query = query.eq('category', category);
+    
+    const { data: allItems } = await query;
+    
+    if (!allItems || allItems.length < slotCount) {
+       alert('Fehler: Nicht genügend Items für diese Kategorie gefunden.');
+       setLoadingRematch(false);
+       return;
+    }
+    const shuffled = [...allItems].sort(() => 0.5 - Math.random());
+    const selectedItems = shuffled.slice(0, slotCount).map(i => i.name);
+    
+    const newGameData = { board: Array(slotCount).fill(null), items: selectedItems };
+
+    // 1. Optimistisches Update: UI springt sofort auf die neue Runde um
+    setRoom({
+      ...room,
+      category: category,
+      game_data: newGameData,
+      current_item_index: 0,
+      current_turn: 'player_1',
+      status: 'IN_PROGRESS'
+    });
+
+    // 2. Datenbank-Update für Spieler 2 (wird über Realtime synchronisiert)
+    await supabase.from('rooms').update({
+      category: category,
+      game_data: newGameData,
+      current_item_index: 0,
+      current_turn: 'player_1',
+      status: 'IN_PROGRESS'
+    }).eq('id', room.id);
+    
+    setLoadingRematch(false);
+  }
 
   const handleRank = async (slotIndex: number) => {
     if (!isMyTurn || board[slotIndex] !== null || current_item_index >= slotCount) return
@@ -81,6 +138,15 @@ function MultiplayerGame({ room, currentUser }: { room: Room, currentUser: User 
     const newGameData = { ...game_data, board: newBoard }
     const nextStatus = nextItemIndex >= slotCount ? 'FINISHED' : 'IN_PROGRESS'
 
+    // Optimistisches Update: Eigener Klick erscheint sofort
+    setRoom({
+      ...room,
+      game_data: newGameData,
+      current_turn: nextPlayer,
+      current_item_index: nextItemIndex,
+      status: nextStatus
+    })
+
     await supabase
       .from('rooms')
       .update({
@@ -93,7 +159,6 @@ function MultiplayerGame({ room, currentUser }: { room: Room, currentUser: User 
   }
 
   const currentItemName = items[current_item_index]
-  const isFinished = room.status === 'FINISHED'
 
   return (
     <main className="min-h-screen bg-white flex flex-col items-center p-6 text-slate-900 w-full">
@@ -125,13 +190,46 @@ function MultiplayerGame({ room, currentUser }: { room: Room, currentUser: User 
       </div>
 
       {isFinished && (
-        <div className="mt-8 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mt-12 flex flex-col items-center gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="text-center">
+            <h3 className="text-2xl font-black italic tracking-tight mb-2">Nächste Runde?</h3>
+            <p className="text-slate-500 text-sm">Spielt direkt noch einmal zusammen!</p>
+          </div>
+          
+          {myPlayerKey === 'player_1' ? (
+            <div className="w-full max-w-md bg-slate-50 p-4 rounded-3xl border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">Kategorie wählen</p>
+              {categories.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {categories.map(cat => (
+                     <button
+                       key={cat}
+                       onClick={() => startRematch(cat)}
+                       disabled={loadingRematch}
+                       className="text-left px-4 py-3 rounded-2xl bg-white border border-slate-100 font-bold text-sm text-slate-600 hover:text-blue-600 hover:border-blue-500 transition-all flex items-center justify-between group"
+                     >
+                       <span className="truncate mr-2 text-xs">{cat}</span>
+                       <Zap size={14} className="opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity shrink-0" />
+                     </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex justify-center p-4"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-100 px-8 py-6 rounded-3xl text-center animate-pulse">
+              <div className="w-8 h-8 border-4 border-slate-300 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="font-bold text-slate-500">Warte auf Host...</p>
+              <p className="text-xs text-slate-400 mt-1">Es wird gerade eine neue Kategorie ausgewählt.</p>
+            </div>
+          )}
+          
           <button 
             onClick={() => router.push('/')} 
-            className="flex items-center gap-3 bg-slate-900 text-white px-10 py-4 rounded-full font-black shadow-xl hover:bg-blue-600 transition-all uppercase tracking-widest group"
+            className="text-slate-400 hover:text-slate-900 text-sm font-bold mt-4 transition-colors"
           >
-            <Zap size={18} className="group-hover:text-yellow-400 fill-current" />
-            Neues Spiel
+            Raum verlassen
           </button>
         </div>
       )}
@@ -148,11 +246,18 @@ function RoomPageContent({ roomId }: { roomId: string }) {
   useEffect(() => {
     const checkAndFetch = async () => {
       const { data: { user: activeUser } } = await supabase.auth.getUser()
-      if (!activeUser) {
-        router.push(`/login?redirectTo=/join/${roomId}`)
-        return
+      let finalUser = activeUser;
+
+      if (!finalUser) {
+        // Falls jemand unangemeldet direkt den Raum aufruft, Gast-Session erstellen
+        const { data } = await supabase.auth.signInAnonymously()
+        if (!data.user) {
+          router.push(`/join/${roomId}`)
+          return
+        }
+        finalUser = data.user;
       }
-      setUser(activeUser)
+      setUser(finalUser)
 
       const { data, error } = await supabase.from('rooms').select('*').eq('id', roomId).single()
       if (error || !data) {
@@ -186,7 +291,7 @@ function RoomPageContent({ roomId }: { roomId: string }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
-      {room.status === 'LOBBY' ? <Lobby room={room} /> : <MultiplayerGame room={room} currentUser={user} />}
+      {room.status === 'LOBBY' ? <Lobby room={room} /> : <MultiplayerGame room={room} currentUser={user} setRoom={setRoom} />}
     </div>
   )
 }
